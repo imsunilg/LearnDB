@@ -68,6 +68,48 @@ export const entities = [
     sortExtra: ['broker_code'],
   },
   {
+    key: 'product_type',
+    label: 'Product type',
+    table: 'insurance_product_types',
+    columns: [
+      ['code', 'code'],
+      ['name', 'name'],
+      ['description', 'description'],
+      ['icon', 'icon'],
+      ['sort_order', 'sortOrder', 'int', '0'],
+    ],
+    extraSelect: '(SELECT count(*) FROM learninsurancedb.insurance_products p WHERE p.product_type_id = t.id AND p.is_active) AS product_count',
+    search: ['code', 'name', 'description'],
+    sortExtra: ['product_count'],
+    defaultSort: 'sort_order',
+    defaultDir: 'ASC',
+  },
+  {
+    key: 'product',
+    label: 'Product',
+    table: 'insurance_products',
+    columns: [
+      ['name', 'name'],
+      ['product_type_id', 'productTypeId', 'bigint'],
+      ['description', 'description'],
+      ['base_rate', 'baseRate', 'numeric'],
+      ['min_sum_insured', 'minSumInsured', 'numeric', '0'],
+      ['max_sum_insured', 'maxSumInsured', 'numeric'],
+      ['effective_from', 'effectiveFrom', 'date', 'CURRENT_DATE'],
+      ['effective_to', 'effectiveTo', 'date'],
+    ],
+    extraSelect: `pt.name AS product_type_name, pt.code AS product_type_code, pt.icon AS product_type_icon,
+       CASE WHEN t.effective_from > CURRENT_DATE THEN 'Upcoming'
+            WHEN t.effective_to IS NOT NULL AND t.effective_to < CURRENT_DATE THEN 'Expired'
+            ELSE 'Live' END AS lifecycle`,
+    joins: 'JOIN learninsurancedb.insurance_product_types pt ON pt.id = t.product_type_id',
+    search: ['product_code', 'name', 'description', 'product_type_name'],
+    filters: ['product_type_id', 'product_type_code', 'lifecycle'],
+    sortExtra: ['product_code', 'product_type_name', 'lifecycle'],
+    defaultSort: 'product_code',
+    defaultDir: 'ASC',
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
