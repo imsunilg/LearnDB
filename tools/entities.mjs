@@ -204,6 +204,24 @@ LEFT JOIN learninsurancedb.brokers b ON b.id = t.broker_id`,
     defaultSort: 'issued_date',
   },
   {
+    // Endorsements are created/decided through fn_endorsement_create / fn_endorsement_decide
+    key: 'endorsement',
+    label: 'Endorsement',
+    table: 'endorsements',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*, p.policy_no, p.customer_id, c.full_name AS customer_name, p.start_date AS policy_start, p.end_date AS policy_end,
+       pt.code AS product_type_code, pt.icon AS product_type_icon
+FROM learninsurancedb.endorsements t
+JOIN learninsurancedb.policies p ON p.id = t.policy_id
+JOIN learninsurancedb.customers c ON c.id = p.customer_id
+JOIN learninsurancedb.insurance_products pr ON pr.id = p.product_id
+JOIN learninsurancedb.insurance_product_types pt ON pt.id = pr.product_type_id`,
+    search: ['endorsement_no', 'policy_no', 'customer_name', 'endorsement_type'],
+    filters: ['status', 'endorsement_type', 'policy_id', 'customer_id', 'product_type_code'],
+    sortExtra: ['endorsement_no', 'policy_no', 'customer_name', 'effective_date', 'status', 'premium_adjustment'],
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
