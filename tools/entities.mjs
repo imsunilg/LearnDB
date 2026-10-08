@@ -178,6 +178,32 @@ LEFT JOIN learninsurancedb.agents a ON a.id = t.agent_id`,
     sortExtra: ['proposal_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'status', 'submitted_date'],
   },
   {
+    // Policies are created only through fn_policy_create (issue from an approved proposal)
+    key: 'policy',
+    label: 'Policy',
+    table: 'policies',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*,
+       CASE WHEN t.status = 'Active' AND t.end_date < CURRENT_DATE THEN 'Expired' ELSE t.status END AS effective_status,
+       (t.end_date - CURRENT_DATE) AS days_to_expiry,
+       c.full_name AS customer_name, c.customer_code, c.mobile AS customer_mobile,
+       p.name AS product_name, p.product_code, pt.code AS product_type_code, pt.name AS product_type_name, pt.icon AS product_type_icon,
+       a.full_name AS agent_name, b.firm_name AS broker_name,
+       pr.proposal_no
+FROM learninsurancedb.policies t
+JOIN learninsurancedb.customers c ON c.id = t.customer_id
+JOIN learninsurancedb.insurance_products p ON p.id = t.product_id
+JOIN learninsurancedb.insurance_product_types pt ON pt.id = p.product_type_id
+JOIN learninsurancedb.proposals pr ON pr.id = t.proposal_id
+LEFT JOIN learninsurancedb.agents a ON a.id = t.agent_id
+LEFT JOIN learninsurancedb.brokers b ON b.id = t.broker_id`,
+    search: ['policy_no', 'customer_name', 'customer_code', 'customer_mobile', 'product_name', 'proposal_no'],
+    filters: ['status', 'effective_status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'broker_id'],
+    sortExtra: ['policy_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'start_date', 'end_date', 'effective_status', 'days_to_expiry', 'issued_date'],
+    defaultSort: 'issued_date',
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
