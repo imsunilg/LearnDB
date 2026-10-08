@@ -24,6 +24,27 @@ export const entities = [
     sortExtra: ['customer_code'],
   },
   {
+    key: 'agent',
+    label: 'Agent',
+    table: 'agents',
+    columns: [
+      ['full_name', 'fullName'],
+      ['email', 'email'],
+      ['mobile', 'mobile'],
+      ['license_number', 'licenseNumber'],
+      ['license_expiry_date', 'licenseExpiryDate', 'date'],
+      ['commission_percent', 'commissionPercent', 'numeric', '10'],
+      ['broker_id', 'brokerId', 'bigint'],
+      ['city', 'city'],
+      ['state', 'state'],
+      ['status', 'status', 'text', "'Active'"],
+      ['joined_date', 'joinedDate', 'date', 'CURRENT_DATE'],
+    ],
+    search: ['agent_code', 'full_name', 'email', 'mobile', 'license_number', 'city'],
+    filters: ['status', 'city', 'state', 'broker_id'],
+    sortExtra: ['agent_code'],
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
