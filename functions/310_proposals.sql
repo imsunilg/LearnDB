@@ -57,28 +57,33 @@ BEGIN
 
     -- Motor: keep the vehicle register in sync (same transaction)
     v_vehicle := v_details->'vehicle';
-    IF v_type = 'MOTOR' AND v_vehicle IS NOT NULL AND v_vehicle ? 'registrationNo' THEN
+    IF v_type = 'MOTOR' AND NOT COALESCE((p_data->>'partial')::boolean, FALSE) AND COALESCE(v_vehicle->>'registrationNo', '') <> '' THEN
         PERFORM learninsurancedb.fn_vehicle_upsert(v_vehicle || jsonb_build_object('customerId', v_customer), p_user);
     END IF;
 
-    v_breakup := learninsurancedb.fn_premium_calculate(v_product, v_details || jsonb_build_object('policyTermYears', v_term));
+    -- A PARTIAL draft (wizard "save & exit" before the form is complete) is stored without a price; it cannot be submitted.
+    IF COALESCE((p_data->>'partial')::boolean, FALSE) THEN
+        v_breakup := NULL;
+    ELSE
+        v_breakup := learninsurancedb.fn_premium_calculate(v_product, v_details || jsonb_build_object('policyTermYears', v_term));
+    END IF;
 
     IF p_id IS NULL THEN
         INSERT INTO learninsurancedb.proposals
             (customer_id, product_id, status, sum_insured, policy_term_years, start_date, net_premium, gst_amount, total_premium,
              premium_breakup, details, agent_id, broker_id, remarks, created_by)
-        VALUES (v_customer, v_product, 'Draft', (v_breakup->>'sumInsured')::numeric, v_term, NULLIF(p_data->>'startDate', '')::date,
-                (v_breakup->>'netPremium')::numeric, (v_breakup->>'gstAmount')::numeric, (v_breakup->>'totalPremium')::numeric,
+        VALUES (v_customer, v_product, 'Draft', COALESCE((v_breakup->>'sumInsured')::numeric, 0), v_term, NULLIF(p_data->>'startDate', '')::date,
+                COALESCE((v_breakup->>'netPremium')::numeric, 0), COALESCE((v_breakup->>'gstAmount')::numeric, 0), COALESCE((v_breakup->>'totalPremium')::numeric, 0),
                 v_breakup, v_details, NULLIF(p_data->>'agentId', '')::bigint, NULLIF(p_data->>'brokerId', '')::bigint,
                 NULLIF(p_data->>'remarks', ''), COALESCE(p_user, 'system'))
         RETURNING id INTO v_id;
         PERFORM learninsurancedb.fn_status_history_add('PROPOSAL', v_id, NULL, 'Draft', 'Proposal created', p_user);
     ELSE
         UPDATE learninsurancedb.proposals SET
-            customer_id = v_customer, product_id = v_product, sum_insured = (v_breakup->>'sumInsured')::numeric,
+            customer_id = v_customer, product_id = v_product, sum_insured = COALESCE((v_breakup->>'sumInsured')::numeric, 0),
             policy_term_years = v_term, start_date = NULLIF(p_data->>'startDate', '')::date,
-            net_premium = (v_breakup->>'netPremium')::numeric, gst_amount = (v_breakup->>'gstAmount')::numeric,
-            total_premium = (v_breakup->>'totalPremium')::numeric, premium_breakup = v_breakup, details = v_details,
+            net_premium = COALESCE((v_breakup->>'netPremium')::numeric, 0), gst_amount = COALESCE((v_breakup->>'gstAmount')::numeric, 0),
+            total_premium = COALESCE((v_breakup->>'totalPremium')::numeric, 0), premium_breakup = v_breakup, details = v_details,
             agent_id = NULLIF(p_data->>'agentId', '')::bigint, broker_id = NULLIF(p_data->>'brokerId', '')::bigint,
             remarks = NULLIF(p_data->>'remarks', ''), modified_date = now(), modified_by = COALESCE(p_user, 'system')
         WHERE id = p_id;
@@ -153,5 +158,17 @@ BEGIN
     WHERE id = p_id;
 
     RETURN learninsurancedb.fn_proposal_change_status(p_id, 'Submitted', 'Submitted for underwriting', p_user);
+END
+$$;
+
+-- Day 37: unified submission - save (create or update the draft) AND submit in ONE transaction.
+-- If the price cannot be calculated or any rule fails, nothing is saved.
+CREATE OR REPLACE FUNCTION fn_proposal_save_and_submit(p_id bigint, p_data jsonb, p_user text DEFAULT 'system') RETURNS jsonb
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_saved jsonb;
+BEGIN
+    v_saved := learninsurancedb.fn_proposal_save(p_id, p_data - 'partial', p_user);
+    RETURN learninsurancedb.fn_proposal_submit((v_saved->>'id')::bigint, p_user);
 END
 $$;
