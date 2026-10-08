@@ -130,6 +130,54 @@ export const entities = [
     defaultDir: 'ASC',
   },
   {
+    // Vehicles are created/updated through fn_vehicle_upsert (motor proposals) or the generated functions
+    key: 'vehicle',
+    label: 'Vehicle',
+    table: 'vehicles',
+    columns: [
+      ['registration_no', 'registrationNo'],
+      ['customer_id', 'customerId', 'bigint'],
+      ['vehicle_type', 'vehicleType'],
+      ['make', 'make'],
+      ['model', 'model'],
+      ['variant', 'variant'],
+      ['fuel_type', 'fuelType'],
+      ['manufacture_year', 'manufactureYear', 'int'],
+      ['registration_date', 'registrationDate', 'date'],
+      ['engine_no', 'engineNo'],
+      ['chassis_no', 'chassisNo'],
+      ['cubic_capacity', 'cubicCapacity', 'int'],
+      ['seating_capacity', 'seatingCapacity', 'int', '5'],
+    ],
+    extraSelect: 'c.full_name AS customer_name, c.customer_code',
+    joins: 'JOIN learninsurancedb.customers c ON c.id = t.customer_id',
+    search: ['registration_no', 'make', 'model', 'customer_name', 'engine_no', 'chassis_no'],
+    filters: ['vehicle_type', 'customer_id', 'fuel_type', 'make'],
+    sortExtra: ['customer_name'],
+  },
+  {
+    // Proposals: list/get/status are generated; save/submit/decide are hand-written in functions/300_proposals.sql
+    key: 'proposal',
+    label: 'Proposal',
+    table: 'proposals',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*,
+       c.full_name AS customer_name, c.customer_code,
+       p.name AS product_name, p.product_code, pt.code AS product_type_code, pt.name AS product_type_name, pt.icon AS product_type_icon,
+       a.full_name AS agent_name,
+       t.details->'vehicle'->>'vehicleType' AS vehicle_type,
+       t.details->'vehicle'->>'registrationNo' AS registration_no
+FROM learninsurancedb.proposals t
+JOIN learninsurancedb.customers c ON c.id = t.customer_id
+JOIN learninsurancedb.insurance_products p ON p.id = t.product_id
+JOIN learninsurancedb.insurance_product_types pt ON pt.id = p.product_type_id
+LEFT JOIN learninsurancedb.agents a ON a.id = t.agent_id`,
+    search: ['proposal_no', 'customer_name', 'customer_code', 'product_name', 'registration_no'],
+    filters: ['status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'vehicle_type'],
+    sortExtra: ['proposal_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'status', 'submitted_date'],
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
