@@ -222,6 +222,27 @@ JOIN learninsurancedb.insurance_product_types pt ON pt.id = pr.product_type_id`,
     sortExtra: ['endorsement_no', 'policy_no', 'customer_name', 'effective_date', 'status', 'premium_adjustment'],
   },
   {
+    // Claims are created through fn_claim_create and move through fn_claim_change_status
+    key: 'claim',
+    label: 'Claim',
+    table: 'claims',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*, p.policy_no, p.sum_insured AS policy_sum_insured, c.full_name AS customer_name, c.customer_code, c.mobile AS customer_mobile,
+       pr.name AS product_name, pt.code AS product_type_code, pt.icon AS product_type_icon,
+       md.name AS claim_type_name
+FROM learninsurancedb.claims t
+JOIN learninsurancedb.policies p ON p.id = t.policy_id
+JOIN learninsurancedb.customers c ON c.id = t.customer_id
+JOIN learninsurancedb.insurance_products pr ON pr.id = p.product_id
+JOIN learninsurancedb.insurance_product_types pt ON pt.id = pr.product_type_id
+LEFT JOIN learninsurancedb.master_data md ON md.type = 'CLAIM_TYPE' AND md.code = t.claim_type`,
+    search: ['claim_no', 'policy_no', 'customer_name', 'customer_code', 'customer_mobile', 'description'],
+    filters: ['status', 'claim_type', 'policy_id', 'customer_id', 'product_type_code'],
+    sortExtra: ['claim_no', 'policy_no', 'customer_name', 'claimed_amount', 'approved_amount', 'status', 'incident_date', 'intimation_date'],
+    defaultSort: 'intimation_date',
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
