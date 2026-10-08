@@ -267,6 +267,20 @@ LEFT JOIN learninsurancedb.master_data md ON md.type = 'PAYMENT_MODE' AND md.cod
     sortExtra: ['payment_no', 'policy_no', 'customer_name', 'amount', 'status', 'paid_date', 'payment_mode'],
   },
   {
+    // Day 46: rows are created by fn_document_register after the API has stored the file
+    key: 'document',
+    label: 'Document',
+    table: 'documents',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*, md.name AS document_type_name
+FROM learninsurancedb.documents t
+LEFT JOIN learninsurancedb.master_data md ON md.type = 'DOCUMENT_TYPE' AND md.code = t.document_type`,
+    search: ['document_no', 'file_name', 'description', 'document_type_name'],
+    filters: ['entity_type', 'entity_id', 'document_type'],
+    sortExtra: ['document_no', 'file_name', 'document_type_name', 'file_size', 'created_date'],
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
