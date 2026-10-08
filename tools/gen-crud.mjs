@@ -20,7 +20,7 @@ const cast = {
   boolnull: (k) => `NULLIF(p_data->>'${k}', '')::boolean`,
   date: (k) => `NULLIF(p_data->>'${k}', '')::date`,
   timestamptz: (k) => `NULLIF(p_data->>'${k}', '')::timestamptz`,
-  jsonb: (k) => `p_data->'${k}'`,
+  jsonb: (k) => `NULLIF(p_data->'${k}', 'null'::jsonb)`,
 }
 const snake = (s) => s.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase())
 

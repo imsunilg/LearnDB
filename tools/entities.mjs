@@ -110,6 +110,26 @@ export const entities = [
     defaultDir: 'ASC',
   },
   {
+    key: 'master_data',
+    label: 'Master data item',
+    table: 'master_data',
+    columns: [
+      ['type', 'type'],
+      ['code', 'code'],
+      ['name', 'name'],
+      ['parent_id', 'parentId', 'bigint'],
+      ['sort_order', 'sortOrder', 'int', '0'],
+      ['meta', 'meta', 'jsonb'],
+    ],
+    extraSelect: 'p.name AS parent_name',
+    joins: 'LEFT JOIN learninsurancedb.master_data p ON p.id = t.parent_id',
+    search: ['code', 'name', 'parent_name'],
+    filters: ['type', 'parent_id'],
+    sortExtra: ['parent_name'],
+    defaultSort: 'sort_order',
+    defaultDir: 'ASC',
+  },
+  {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql
     key: 'user',
     label: 'User',
