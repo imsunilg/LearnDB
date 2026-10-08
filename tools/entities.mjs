@@ -190,7 +190,12 @@ LEFT JOIN learninsurancedb.agents a ON a.id = t.agent_id`,
        c.full_name AS customer_name, c.customer_code, c.mobile AS customer_mobile,
        p.name AS product_name, p.product_code, pt.code AS product_type_code, pt.name AS product_type_name, pt.icon AS product_type_icon,
        a.full_name AS agent_name, b.firm_name AS broker_name,
-       pr.proposal_no
+       pr.proposal_no,
+       COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) AS amount_paid,
+       CASE WHEN COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) >= t.total_premium THEN 'Paid'
+            WHEN EXISTS (SELECT 1 FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Failed' AND NOT EXISTS (SELECT 1 FROM learninsurancedb.payments y WHERE y.policy_id = t.id AND y.status = 'Success')) THEN 'Failed'
+            WHEN COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) > 0 THEN 'Partial'
+            ELSE 'Unpaid' END AS payment_status
 FROM learninsurancedb.policies t
 JOIN learninsurancedb.customers c ON c.id = t.customer_id
 JOIN learninsurancedb.insurance_products p ON p.id = t.product_id
@@ -199,8 +204,8 @@ JOIN learninsurancedb.proposals pr ON pr.id = t.proposal_id
 LEFT JOIN learninsurancedb.agents a ON a.id = t.agent_id
 LEFT JOIN learninsurancedb.brokers b ON b.id = t.broker_id`,
     search: ['policy_no', 'customer_name', 'customer_code', 'customer_mobile', 'product_name', 'proposal_no'],
-    filters: ['status', 'effective_status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'broker_id'],
-    sortExtra: ['policy_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'start_date', 'end_date', 'effective_status', 'days_to_expiry', 'issued_date'],
+    filters: ['status', 'effective_status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'broker_id', 'payment_status'],
+    sortExtra: ['payment_status', 'amount_paid', 'policy_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'start_date', 'end_date', 'effective_status', 'days_to_expiry', 'issued_date'],
     defaultSort: 'issued_date',
   },
   {
@@ -241,6 +246,25 @@ LEFT JOIN learninsurancedb.master_data md ON md.type = 'CLAIM_TYPE' AND md.code 
     filters: ['status', 'claim_type', 'policy_id', 'customer_id', 'product_type_code'],
     sortExtra: ['claim_no', 'policy_no', 'customer_name', 'claimed_amount', 'approved_amount', 'status', 'incident_date', 'intimation_date'],
     defaultSort: 'intimation_date',
+  },
+  {
+    // Payments are created through fn_payment_start / fn_payment_complete (the API talks to the payment gateway in between)
+    key: 'payment',
+    label: 'Payment',
+    table: 'payments',
+    skip: ['create', 'update'],
+    columns: [],
+    view: `SELECT t.*, p.policy_no, p.total_premium AS policy_premium, c.full_name AS customer_name, c.customer_code,
+       pr.name AS product_name, pt.icon AS product_type_icon, md.name AS payment_mode_name
+FROM learninsurancedb.payments t
+JOIN learninsurancedb.policies p ON p.id = t.policy_id
+JOIN learninsurancedb.customers c ON c.id = t.customer_id
+JOIN learninsurancedb.insurance_products pr ON pr.id = p.product_id
+JOIN learninsurancedb.insurance_product_types pt ON pt.id = pr.product_type_id
+LEFT JOIN learninsurancedb.master_data md ON md.type = 'PAYMENT_MODE' AND md.code = t.payment_mode`,
+    search: ['payment_no', 'receipt_no', 'transaction_ref', 'policy_no', 'customer_name', 'customer_code'],
+    filters: ['status', 'payment_mode', 'policy_id', 'customer_id'],
+    sortExtra: ['payment_no', 'policy_no', 'customer_name', 'amount', 'status', 'paid_date', 'payment_mode'],
   },
   {
     // Day 20: create/update are hand-written (password hashing + role assignment) in functions/210_users.sql

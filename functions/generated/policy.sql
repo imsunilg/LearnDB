@@ -9,7 +9,12 @@ SELECT t.*,
        c.full_name AS customer_name, c.customer_code, c.mobile AS customer_mobile,
        p.name AS product_name, p.product_code, pt.code AS product_type_code, pt.name AS product_type_name, pt.icon AS product_type_icon,
        a.full_name AS agent_name, b.firm_name AS broker_name,
-       pr.proposal_no
+       pr.proposal_no,
+       COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) AS amount_paid,
+       CASE WHEN COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) >= t.total_premium THEN 'Paid'
+            WHEN EXISTS (SELECT 1 FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Failed' AND NOT EXISTS (SELECT 1 FROM learninsurancedb.payments y WHERE y.policy_id = t.id AND y.status = 'Success')) THEN 'Failed'
+            WHEN COALESCE((SELECT sum(x.amount) FROM learninsurancedb.payments x WHERE x.policy_id = t.id AND x.status = 'Success'), 0) > 0 THEN 'Partial'
+            ELSE 'Unpaid' END AS payment_status
 FROM learninsurancedb.policies t
 JOIN learninsurancedb.customers c ON c.id = t.customer_id
 JOIN learninsurancedb.insurance_products p ON p.id = t.product_id
@@ -42,7 +47,7 @@ DECLARE
     v_total  bigint;
     v_items  jsonb;
 BEGIN
-    IF v_sort IS NULL OR NOT (v_sort = ANY (ARRAY['id', 'created_date', 'modified_date', 'is_active', 'policy_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'start_date', 'end_date', 'effective_status', 'days_to_expiry', 'issued_date'])) THEN
+    IF v_sort IS NULL OR NOT (v_sort = ANY (ARRAY['id', 'created_date', 'modified_date', 'is_active', 'payment_status', 'amount_paid', 'policy_no', 'customer_name', 'product_name', 'total_premium', 'sum_insured', 'start_date', 'end_date', 'effective_status', 'days_to_expiry', 'issued_date'])) THEN
         v_sort := 'issued_date';
         IF p_sort_by IS NULL THEN v_dir := 'DESC'; END IF;
     END IF;
@@ -54,7 +59,7 @@ BEGIN
 
     FOR v_key, v_val IN SELECT key, value FROM jsonb_each_text(COALESCE(p_filters, '{}'::jsonb)) LOOP
         v_col := learninsurancedb.fn_to_snake(v_key);
-        IF v_col = ANY (ARRAY['is_active', 'status', 'effective_status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'broker_id']) AND COALESCE(v_val, '') <> '' THEN
+        IF v_col = ANY (ARRAY['is_active', 'status', 'effective_status', 'product_type_code', 'product_id', 'customer_id', 'agent_id', 'broker_id', 'payment_status']) AND COALESCE(v_val, '') <> '' THEN
             v_where := v_where || format(' AND %I::text = %L', v_col, v_val);
         END IF;
     END LOOP;
