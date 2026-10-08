@@ -86,6 +86,7 @@ BEGIN
 END
 $fn$;
 
+
 -- UPDATE: only keys present in p_data are changed (so partial and full updates both work)
 CREATE OR REPLACE FUNCTION learninsurancedb.fn_customer_update(p_id bigint, p_data jsonb, p_user text DEFAULT 'system') RETURNS jsonb
 LANGUAGE plpgsql AS $fn$
@@ -111,6 +112,7 @@ BEGIN
     RETURN learninsurancedb.fn_customer_get_by_id(p_id);
 END
 $fn$;
+
 
 -- SET ACTIVE: soft delete / restore
 CREATE OR REPLACE FUNCTION learninsurancedb.fn_customer_set_active(p_id bigint, p_active boolean, p_user text DEFAULT 'system') RETURNS jsonb

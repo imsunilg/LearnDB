@@ -1,4 +1,4 @@
-﻿// Generates view + CRUD functions for every entity in entities.mjs.
+// Generates view + CRUD functions for every entity in entities.mjs.
 //   node LearnDB/tools/gen-crud.mjs
 // Output: LearnDB/functions/generated/<key>.sql  (idempotent; safe to re-run)
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -27,6 +27,7 @@ const snake = (s) => s.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase())
 const valueExpr = (c) => (c.def ? `COALESCE(${cast[c.type](c.json)}, ${c.def})` : cast[c.type](c.json))
 
 for (const e of entities) {
+  const skip = new Set(e.skip ?? [])
   const cols = e.columns.map(([col, json, type = 'text', def]) => ({ col, json, type, def }))
   const view = `vw_${e.table}`
   const fn = (action) => `${S}.fn_${e.key}_${action}`
@@ -42,8 +43,8 @@ for (const e of entities) {
 
 DROP VIEW IF EXISTS ${S}.${view} CASCADE;
 CREATE VIEW ${S}.${view} AS
-SELECT t.*${e.extraSelect ? ',\n       ' + e.extraSelect : ''}
-FROM ${S}.${e.table} t${e.joins ? '\n' + e.joins : ''};
+${e.view ?? `SELECT t.*${e.extraSelect ? ',\n       ' + e.extraSelect : ''}
+FROM ${S}.${e.table} t${e.joins ? '\n' + e.joins : ''}`};
 
 -- LIST: search + filters + sort + paging. Returns { items, totalCount, page, pageSize }
 DROP FUNCTION IF EXISTS ${fn('get_all')}(text, int, int, text, text, jsonb);
@@ -106,7 +107,7 @@ LANGUAGE sql STABLE AS $fn$
     SELECT ${S}.fn_to_camel(to_jsonb(v)) FROM ${S}.${view} v WHERE v.id = p_id;
 $fn$;
 
--- CREATE: p_data uses camelCase keys
+${skip.has('create') ? '' : `-- CREATE: p_data uses camelCase keys
 CREATE OR REPLACE FUNCTION ${fn('create')}(p_data jsonb, p_user text DEFAULT 'system') RETURNS jsonb
 LANGUAGE plpgsql AS $fn$
 DECLARE v_id bigint;
@@ -118,8 +119,9 @@ BEGIN
     RETURN ${fn('get_by_id')}(v_id);
 END
 $fn$;
+`}
 
--- UPDATE: only keys present in p_data are changed (so partial and full updates both work)
+${skip.has('update') ? '' : `-- UPDATE: only keys present in p_data are changed (so partial and full updates both work)
 CREATE OR REPLACE FUNCTION ${fn('update')}(p_id bigint, p_data jsonb, p_user text DEFAULT 'system') RETURNS jsonb
 LANGUAGE plpgsql AS $fn$
 BEGIN
@@ -134,6 +136,7 @@ BEGIN
     RETURN ${fn('get_by_id')}(p_id);
 END
 $fn$;
+`}
 
 -- SET ACTIVE: soft delete / restore
 CREATE OR REPLACE FUNCTION ${fn('set_active')}(p_id bigint, p_active boolean, p_user text DEFAULT 'system') RETURNS jsonb
