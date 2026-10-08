@@ -267,6 +267,18 @@ LEFT JOIN learninsurancedb.master_data md ON md.type = 'PAYMENT_MODE' AND md.cod
     sortExtra: ['payment_no', 'policy_no', 'customer_name', 'amount', 'status', 'paid_date', 'payment_mode'],
   },
   {
+    // Day 50: append-only; rows are written by fn_audit_log_write from the API middleware
+    key: 'audit_log',
+    label: 'Audit log',
+    table: 'audit_logs',
+    skip: ['create', 'update'],
+    columns: [],
+    search: ['user_name', 'path', 'correlation_id', 'entity', 'action'],
+    filters: ['user_name', 'entity', 'method', 'status_code', 'correlation_id'],
+    sortExtra: ['created_date', 'user_name', 'method', 'path', 'entity', 'status_code', 'duration_ms'],
+    defaultSort: 'created_date',
+  },
+  {
     // Day 46: rows are created by fn_document_register after the API has stored the file
     key: 'document',
     label: 'Document',
