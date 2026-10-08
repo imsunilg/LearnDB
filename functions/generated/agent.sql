@@ -3,8 +3,10 @@
 
 DROP VIEW IF EXISTS learninsurancedb.vw_agents CASCADE;
 CREATE VIEW learninsurancedb.vw_agents AS
-SELECT t.*
-FROM learninsurancedb.agents t;
+SELECT t.*,
+       b.firm_name AS broker_name
+FROM learninsurancedb.agents t
+LEFT JOIN learninsurancedb.brokers b ON b.id = t.broker_id;
 
 -- LIST: search + filters + sort + paging. Returns { items, totalCount, page, pageSize }
 DROP FUNCTION IF EXISTS learninsurancedb.fn_agent_get_all(text, int, int, text, text, jsonb);
@@ -30,14 +32,14 @@ DECLARE
     v_total  bigint;
     v_items  jsonb;
 BEGIN
-    IF v_sort IS NULL OR NOT (v_sort = ANY (ARRAY['full_name', 'email', 'mobile', 'license_number', 'license_expiry_date', 'commission_percent', 'broker_id', 'city', 'state', 'status', 'joined_date', 'id', 'created_date', 'modified_date', 'is_active', 'agent_code'])) THEN
+    IF v_sort IS NULL OR NOT (v_sort = ANY (ARRAY['full_name', 'email', 'mobile', 'license_number', 'license_expiry_date', 'commission_percent', 'broker_id', 'city', 'state', 'status', 'joined_date', 'id', 'created_date', 'modified_date', 'is_active', 'agent_code', 'broker_name'])) THEN
         v_sort := 'created_date';
         IF p_sort_by IS NULL THEN v_dir := 'DESC'; END IF;
     END IF;
 
     IF p_search IS NOT NULL AND btrim(p_search) <> '' THEN
         v_like := '%' || btrim(p_search) || '%';
-        v_where := v_where || format(' AND (agent_code::text ILIKE %1$L OR full_name::text ILIKE %1$L OR email::text ILIKE %1$L OR mobile::text ILIKE %1$L OR license_number::text ILIKE %1$L OR city::text ILIKE %1$L)', v_like);
+        v_where := v_where || format(' AND (agent_code::text ILIKE %1$L OR full_name::text ILIKE %1$L OR email::text ILIKE %1$L OR mobile::text ILIKE %1$L OR license_number::text ILIKE %1$L OR city::text ILIKE %1$L OR broker_name::text ILIKE %1$L)', v_like);
     END IF;
 
     FOR v_key, v_val IN SELECT key, value FROM jsonb_each_text(COALESCE(p_filters, '{}'::jsonb)) LOOP
