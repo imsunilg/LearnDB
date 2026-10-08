@@ -18,7 +18,11 @@ LANGUAGE sql STABLE AS $$
                            FROM learninsurancedb.user_roles ur
                            JOIN learninsurancedb.roles r ON r.id = ur.role_id AND r.is_active
                            WHERE ur.user_id = u.id AND ur.is_active), '[]'::jsonb),
-        'permissions', '[]'::jsonb
+        'permissions', COALESCE((SELECT jsonb_agg(DISTINCT rp.permission ORDER BY rp.permission)
+                                 FROM learninsurancedb.user_roles ur
+                                 JOIN learninsurancedb.roles r ON r.id = ur.role_id AND r.is_active
+                                 JOIN learninsurancedb.role_permissions rp ON rp.role_id = r.id AND rp.is_active
+                                 WHERE ur.user_id = u.id AND ur.is_active), '[]'::jsonb)
     )
     FROM learninsurancedb.users u
     WHERE lower(u.username) = lower(p_username);
