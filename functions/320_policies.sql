@@ -41,7 +41,11 @@ BEGIN
         (policy_no, proposal_id, customer_id, product_id, status, start_date, end_date, policy_term_years, sum_insured,
          net_premium, gst_amount, total_premium, premium_breakup, agent_id, broker_id, issued_by, created_by)
     VALUES (learninsurancedb.fn_next_policy_no(v_prop.type_code), v_prop.id, v_prop.customer_id, v_prop.product_id, 'Active',
-            v_prop.start_date, ((v_prop.start_date + make_interval(years => v_prop.policy_term_years))::date - 1), v_prop.policy_term_years,
+            v_prop.start_date,
+            -- Travel is covered for the trip; every other line for N policy years
+            CASE WHEN v_prop.type_code = 'TRAVEL' THEN COALESCE((v_prop.details#>>'{trip,endDate}')::date, v_prop.start_date)
+                 ELSE ((v_prop.start_date + make_interval(years => v_prop.policy_term_years))::date - 1) END,
+            v_prop.policy_term_years,
             v_prop.sum_insured, v_prop.net_premium, v_prop.gst_amount, v_prop.total_premium, v_prop.premium_breakup,
             v_prop.agent_id, v_prop.broker_id, COALESCE(p_user, 'system'), COALESCE(p_user, 'system'))
     RETURNING id INTO v_policy_id;
