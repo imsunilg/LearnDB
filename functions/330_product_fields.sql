@@ -6,7 +6,7 @@ LANGUAGE sql STABLE AS $$
     SELECT jsonb_strip_nulls(jsonb_build_object(
         'key', p_row.field_key, 'label', p_row.label, 'type', p_row.field_type, 'valueType', p_row.value_type,
         'required', p_row.required, 'section', p_row.section, 'options', p_row.options,
-        'masterType', p_row.master_type, 'parentField', p_row.parent_field, 'parentMasterType', p_row.parent_master_type,
+        'masterType', p_row.master_type, 'valueKey', p_row.value_key, 'parentField', p_row.parent_field, 'parentMasterType', p_row.parent_master_type,
         'showIf', p_row.show_if, 'validation', p_row.validation, 'defaultValue', p_row.default_value,
         'hint', p_row.hint, 'placeholder', p_row.placeholder));
 $$;

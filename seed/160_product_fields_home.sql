@@ -20,3 +20,7 @@ FROM (VALUES
 WHERE NOT EXISTS (
     SELECT 1 FROM learninsurancedb.product_field_config c
     WHERE c.product_type_code = 'HOME' AND c.parent_key IS NULL AND c.field_key = v.key);
+
+-- Rating needs stable codes (not display names) for these two master data selects
+UPDATE learninsurancedb.product_field_config SET value_key = 'code'
+WHERE product_type_code = 'HOME' AND field_key IN ('property.type', 'property.constructionType');

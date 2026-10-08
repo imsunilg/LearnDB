@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS product_field_config (
     sort_order          INT          NOT NULL DEFAULT 0,
     options             JSONB,                          -- static options: [{"value":"OWNER","label":"Owner"}]
     master_type         VARCHAR(40),                    -- options from master data (e.g. STATE)
+    value_key           VARCHAR(10)  NOT NULL DEFAULT 'name',   -- master data: store the item's name or its code
     parent_field        VARCHAR(100),                   -- cascading select: path of the parent select
     parent_master_type  VARCHAR(40),                    -- master type of the parent select (to resolve its id)
     show_if             JSONB,                          -- {"field":"cover.contentsCover","equals":true}
@@ -33,3 +34,6 @@ CREATE TABLE IF NOT EXISTS product_field_config (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pfc_key ON product_field_config (product_type_code, COALESCE(parent_key, ''), field_key);
 CREATE INDEX IF NOT EXISTS ix_pfc_type_sort ON product_field_config (product_type_code, sort_order);
+
+-- Added after the first release of the table (idempotent for existing databases)
+ALTER TABLE product_field_config ADD COLUMN IF NOT EXISTS value_key VARCHAR(10) NOT NULL DEFAULT 'name';
