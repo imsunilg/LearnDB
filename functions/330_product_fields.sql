@@ -1,4 +1,5 @@
--- Day 32: the form definition of a product line, nested (groups contain their children), ready for the React engine.
+-- Day 32/35: the form definition of a product line as a nested tree (groups contain their children, groups may nest),
+-- ready for the React engine.
 SET search_path = learninsurancedb, public;
 
 CREATE OR REPLACE FUNCTION fn_product_field_json(p_row learninsurancedb.product_field_config) RETURNS jsonb
@@ -11,17 +12,26 @@ LANGUAGE sql STABLE AS $$
         'hint', p_row.hint, 'placeholder', p_row.placeholder));
 $$;
 
+-- Recursive (plpgsql, because a SQL function cannot reference itself while being created)
+CREATE OR REPLACE FUNCTION fn_product_field_tree(p_type_code text, p_parent_key text) RETURNS jsonb
+LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    v_result jsonb;
+BEGIN
+    SELECT COALESCE(jsonb_agg(
+               learninsurancedb.fn_product_field_json(f) ||
+               CASE WHEN f.field_type = 'group'
+                    THEN jsonb_build_object('fields', learninsurancedb.fn_product_field_tree(p_type_code, f.field_key))
+                    ELSE '{}'::jsonb END
+               ORDER BY f.sort_order, f.id), '[]'::jsonb)
+    INTO v_result
+    FROM learninsurancedb.product_field_config f
+    WHERE f.product_type_code = upper(p_type_code) AND f.is_active AND f.parent_key IS NOT DISTINCT FROM p_parent_key;
+    RETURN v_result;
+END
+$$;
+
 CREATE OR REPLACE FUNCTION fn_product_get_fields(p_type_code text) RETURNS jsonb
 LANGUAGE sql STABLE AS $$
-    SELECT COALESCE(jsonb_agg(
-        learninsurancedb.fn_product_field_json(f) ||
-        CASE WHEN f.field_type = 'group' THEN
-            jsonb_build_object('fields', COALESCE((
-                SELECT jsonb_agg(learninsurancedb.fn_product_field_json(c) ORDER BY c.sort_order, c.id)
-                FROM learninsurancedb.product_field_config c
-                WHERE c.product_type_code = f.product_type_code AND c.parent_key = f.field_key AND c.is_active), '[]'::jsonb))
-        ELSE '{}'::jsonb END
-        ORDER BY f.sort_order, f.id), '[]'::jsonb)
-    FROM learninsurancedb.product_field_config f
-    WHERE f.product_type_code = upper(p_type_code) AND f.parent_key IS NULL AND f.is_active;
+    SELECT learninsurancedb.fn_product_field_tree(p_type_code, NULL);
 $$;
